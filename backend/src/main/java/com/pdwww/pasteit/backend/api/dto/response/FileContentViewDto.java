@@ -6,40 +6,14 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
-public class FileContentViewDto {
-
-	@NotBlank
-	@Size(max = 255)
-	private String name;
-
-	@NotNull
-	@PositiveOrZero
-	private Long size;
-
-	@NotNull
-	private FileCategoryDto category;
-
-	public String getName() {
-		return name;
-	}
-
-	public void setName(String name) {
-		this.name = name;
-	}
-
-	public Long getSize() {
-		return size;
-	}
-
-	public void setSize(Long size) {
-		this.size = size;
-	}
-
-	public FileCategoryDto getCategory() {
-		return category;
-	}
-
-	public void setCategory(FileCategoryDto category) {
-		this.category = category;
-	}
+public record FileContentViewDto(
+		@NotBlank
+		@Size(max = 255)
+		String name,
+		@NotNull
+		@PositiveOrZero
+		Long size,
+		@NotNull
+		FileCategoryDto category
+) {
 }

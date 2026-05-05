@@ -9,12 +9,15 @@ services:
       - "8080:8080"
     volumes:
       # Allocate storage volume for the app's virtual filesystem
-      - app-data:/root/stashes
+      - stashes:/root/stashes
+      - stashes-meta:/root/stashes-meta
     environment:
       - JAVA_OPTS=-Xmx512m -Xms256m
     restart: unless-stopped
 
 volumes:
   # Virtual filesystem storage with 1GB capacity
-  app-data:
+  stashes:
+    driver: local
+  stashes-meta:
     driver: local

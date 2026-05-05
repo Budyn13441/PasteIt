@@ -8,18 +8,21 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-public class CreateFolderRequestDto {
+public record CreateFolderRequestDto(
+		@NotNull
+		@Size(max = 1024)
+		@Pattern(regexp = ValidationPatterns.STASH_PATH_OR_EMPTY_REGEX, message = "parent_path must be empty or a valid absolute path")
+		@JsonProperty("parent_path")
+		String parentPath,
+		@NotBlank
+		@Size(max = 255)
+		@Pattern(regexp = ValidationPatterns.ENTRY_NAME_REGEX, message = "name must not contain path separators")
+		String name
+) {
 
-	@NotNull
-	@Size(max = 1024)
-	@Pattern(regexp = ValidationPatterns.STASH_PATH_OR_EMPTY_REGEX, message = "parent_path must be empty or a valid absolute path")
-	@JsonProperty("parent_path")
-	private String parentPath = "";
-
-	@NotBlank
-	@Size(max = 255)
-	@Pattern(regexp = ValidationPatterns.ENTRY_NAME_REGEX, message = "name must not contain path separators")
-	private String name;
+	public CreateFolderRequestDto {
+		parentPath = parentPath == null ? "" : parentPath;
+	}
 
 	@AssertTrue(message = "name must not include a file extension for folders")
 	public boolean isFolderNameValid() {
@@ -27,21 +30,5 @@ public class CreateFolderRequestDto {
 			return true;
 		}
 		return !name.matches(ValidationPatterns.FILE_NAME_WITH_EXTENSION_REGEX);
-	}
-
-	public String getParentPath() {
-		return parentPath;
-	}
-
-	public void setParentPath(String parentPath) {
-		this.parentPath = parentPath;
-	}
-
-	public String getName() {
-		return name;
-	}
-
-	public void setName(String name) {
-		this.name = name;
 	}
 }

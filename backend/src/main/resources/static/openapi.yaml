@@ -11,15 +11,9 @@ paths:
       description: Endpoint do tworzenia nowego kodu (i nowego stashu).
       responses:
         '201':
-          description: Kod został pomyślnie utworzony
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  code:
-                    type: string
-                    description: Wygenerowany kod (pozwala wejść pod link http://localhost:8080/{code})
+          $ref: '#/components/responses/NewStashCreated'
+        '507':
+          $ref: '#/components/responses/InsufficientStorage'
   /api/v1/view/{code}:
     get:
       summary: Podgląd zawartości stashu
@@ -33,13 +27,9 @@ paths:
         description: Kod stashu
       responses:
         '200':
-          description: Zawartość stashu została pomyślnie zwrócona
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StashView'
+          $ref: '#/components/responses/StashViewSuccess'
         '404':
-          description: Kod nie został znaleziony
+          $ref: '#/components/responses/NotFound'
   /api/v1/prolong/{code}:
     post:
       summary: Przedłużenie ważności stashu
@@ -66,12 +56,12 @@ paths:
                   description: Nowa data i czas, do którego stash jest ważny
                   example: '2024-12-31T23:59:59Z'
       responses:
-        '200':
-          description: Ważność stashu została pomyślnie przedłużona
-        '404':
-          description: Kod nie został znaleziony
+        '204':
+          $ref: '#/components/responses/SuccessNoContent'
         '400':
-          description: Data i czas są w nieprawidłowym formacie
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/make-readonly/{code}:
     post:
       summary: Ustawienie stashu jako read-only
@@ -86,14 +76,14 @@ paths:
           type: string
         description: Kod stashu
       responses:
-        '200':
-          description: Stash został pomyślnie ustawiony jako tylko do odczytu
+        '204':
+          $ref: '#/components/responses/SuccessNoContent'
         '400':
-          description: Stash jest już tylko do odczytu
+          $ref: '#/components/responses/BadRequest'
         '404':
-          description: Kod nie został znaleziony
+          $ref: '#/components/responses/NotFound'
         '409':
-          description: Konflikt - stash jest już tylko do odczytu
+          $ref: '#/components/responses/Conflict'
   /api/v1/upload/{code}:
     post:
       summary: Upload pliku lub folderu
@@ -141,19 +131,20 @@ paths:
                   description: Plik lub folder do uploadowania (jeśli jest to folder,
                     powinien być spakowany do formatu zip)
       responses:
-        '200':
-          description: Plik został pomyślnie uploadowany do stashu
+        '204':
+          $ref: '#/components/responses/SuccessNoContent'
         '400':
-          description: Stash jest tylko do odczytu lub inny błąd biznesowy
+          $ref: '#/components/responses/BadRequest'
         '404':
-          description: Kod nie został znaleziony
+          $ref: '#/components/responses/NotFound'
         '403':
-          description: Dostęp zabroniony - stash jest tylko do odczytu
+          $ref: '#/components/responses/Forbidden'
         '409':
-          description: Konflikt - plik lub folder już istnieje w tej ścieżce
+          $ref: '#/components/responses/Conflict'
         '422':
-          description: Nieobsługiwana jednostka - nieprawidłowa ścieżka, nazwa lub
-            format pliku
+          $ref: '#/components/responses/UnprocessableEntity'
+        '507':
+          $ref: '#/components/responses/InsufficientStorage'
   /api/v1/download/{code}:
     get:
       summary: Pobieranie zasobu ze stashu
@@ -177,10 +168,10 @@ paths:
           pattern: ^(/[a-zA-Z0-9._\- ]+)+/?$
           minLength: 1
           maxLength: 1024
-          description: Ścieżka do pliku lub folderu w stashu (np. "/folder1/folder2/file.txt").
+          description: Ścieżka do pliku lub folderu w staszu (np. "/folder1/folder2/file.txt").
             Ścieżka musi zaczynać się od "/" i zawierać tylko znaki alfanumeryczne,
             podkreślenia, myślniki i spacje. Ścieżki zawierające ../ lub // są niedozwolone.
-        description: Ścieżka do pliku lub folderu w stashu, który ma zostać pobrany
+        description: Ścieżka do pliku lub folderu w staszu, który ma zostać pobrany
           (np. "/folder1/folder2/file.txt")
       - in: query
         name: format
@@ -193,15 +184,9 @@ paths:
           spakowany jako plik .zip.
       responses:
         '200':
-          description: Plik, folder lub archiwum zip został pomyślnie pobrany ze stashu
-          content:
-            application/octet-stream:
-              schema:
-                type: string
-                format: binary
+          $ref: '#/components/responses/FileDownloadSuccess'
         '404':
-          description: Kod nie został znaleziony lub ścieżka do pliku/folderu jest
-            nieprawidłowa
+          $ref: '#/components/responses/NotFound'
   /api/v1/delete/{code}:
     delete:
       summary: Usuwanie pliku lub folderu
@@ -220,20 +205,19 @@ paths:
         name: path
         required: true
         schema: *id001
-        description: Ścieżka do pliku lub folderu w stashu, który ma zostać usunięty
+        description: Ścieżka do pliku lub folderu w staszu, który ma zostać usunięty
           (np. "/folder1/folder2/file.txt")
       responses:
-        '200':
-          description: Plik lub folder został pomyślnie usunięty ze stashu
+        '204':
+          $ref: '#/components/responses/SuccessNoContent'
         '400':
-          description: Inny błąd biznesowy podczas usuwania
+          $ref: '#/components/responses/BadRequest'
         '404':
-          description: Kod nie został znaleziony lub ścieżka do pliku/folderu jest
-            nieprawidłowa
+          $ref: '#/components/responses/NotFound'
         '403':
-          description: Dostęp zabroniony - stash jest tylko do odczytu
+          $ref: '#/components/responses/Forbidden'
         '422':
-          description: Nieobsługiwana jednostka - nieprawidłowa ścieżka
+          $ref: '#/components/responses/UnprocessableEntity'
   /api/v1/rename/{code}:
     post:
       summary: Zmiana nazwy zasobu
@@ -267,19 +251,18 @@ paths:
                     pliku (np. "new_file.txt" lub "new_folder"). Jeśli jest to folder,
                     nie powinna zawierać rozszerzenia (np. "new_folder").
       responses:
-        '200':
-          description: Plik lub folder został pomyślnie przemianowany w stashu
+        '204':
+          $ref: '#/components/responses/SuccessNoContent'
         '400':
-          description: Inny błąd biznesowy podczas zmiany nazwy
+          $ref: '#/components/responses/BadRequest'
         '404':
-          description: Kod nie został znaleziony lub ścieżka do pliku/folderu jest
-            nieprawidłowa
+          $ref: '#/components/responses/NotFound'
         '403':
-          description: Dostęp zabroniony - stash jest tylko do odczytu
+          $ref: '#/components/responses/Forbidden'
         '409':
-          description: Konflikt - plik lub folder z nową nazwą już istnieje
+          $ref: '#/components/responses/Conflict'
         '422':
-          description: Nieobsługiwana jednostka - nieprawidłowa ścieżka lub nazwa
+          $ref: '#/components/responses/UnprocessableEntity'
   /api/v1/new-folder/{code}:
     post:
       summary: Tworzenie nowego folderu
@@ -312,19 +295,20 @@ paths:
                   type: string
                   description: Nazwa nowego folderu (np. "new_folder").
       responses:
-        '200':
-          description: Nowy folder został pomyślnie utworzony w stashu
+        '204':
+          $ref: '#/components/responses/SuccessNoContent'
         '400':
-          description: Inny błąd biznesowy podczas tworzenia folderu
+          $ref: '#/components/responses/BadRequest'
         '404':
-          description: Kod nie został znaleziony
+          $ref: '#/components/responses/NotFound'
         '403':
-          description: Dostęp zabroniony - stash jest tylko do odczytu
+          $ref: '#/components/responses/Forbidden'
         '409':
-          description: Konflikt - folder o tej nazwie już istnieje w podanej ścieżce
+          $ref: '#/components/responses/Conflict'
         '422':
-          description: Nieobsługiwana jednostka - nieprawidłowa nazwa lub ścieżka
-            folderu
+          $ref: '#/components/responses/UnprocessableEntity'
+        '507':
+          $ref: '#/components/responses/InsufficientStorage'
   /api/v1/update-category/{code}:
     post:
       summary: Aktualizacja kategorii pliku
@@ -361,18 +345,81 @@ paths:
                   - OTHER
                   description: Nowa kategoria pliku
       responses:
-        '200':
-          description: Kategoria została pomyślnie zaktualizowana
+        '204':
+          $ref: '#/components/responses/SuccessNoContent'
         '400':
-          description: Inny błąd biznesowy
+          $ref: '#/components/responses/BadRequest'
         '404':
-          description: Kod lub plik nie został znaleziony
+          $ref: '#/components/responses/NotFound'
         '403':
-          description: Dostęp zabroniony - stash jest tylko do odczytu
+          $ref: '#/components/responses/Forbidden'
         '422':
-          description: Nieobsługiwana jednostka - nieprawidłowa kategoria lub ścieżka
-            pliku
+          $ref: '#/components/responses/UnprocessableEntity'
+
 components:
+  responses:
+    NewStashCreated:
+      description: Kod został pomyślnie utworzony
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: string
+                description: Wygenerowany kod (pozwala wejść pod link http://localhost:8080/{code})
+    StashViewSuccess:
+      description: Zawartość stashu została pomyślnie zwrócona
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StashView'
+    FileDownloadSuccess:
+      description: Plik, folder lub archiwum zip został pomyślnie pobrany ze stashu
+      content:
+        application/octet-stream:
+          schema:
+            type: string
+            format: binary
+    SuccessNoContent:
+      description: Operacja została pomyślnie wykonana
+    BadRequest:
+      description: Nieprawidłowe dane żądania lub błąd biznesowy
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Zasób nie został znaleziony
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Dostęp zabroniony - stash jest tylko do odczytu
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Konflikt - zasób o tej nazwie już istnieje
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnprocessableEntity:
+      description: Nieprawidłowe parametry żądania
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InsufficientStorage:
+      description: Niewystarczające zasoby serwera - brak pamięci, miejsca na dysku lub inne błędy zasobów
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
   schemas:
     StashView:
       type: object
@@ -391,12 +438,17 @@ components:
       type: object
       required:
       - path
+      - name
       - is_directory
       properties:
         path:
           type: string
           description: Pełna ścieżka do pliku lub katalogu
           example: /folder1/folder2/file.txt
+        name:
+          type: string
+          description: Nazwa pliku (bez ścieżki, czyli np. "file.txt" dla ścieżki
+            "/folder1/folder2/file.txt")
         is_directory:
           type: boolean
           description: Informacja, czy jest to katalog
@@ -411,11 +463,14 @@ components:
           description: Lista dzieci węzła (obecna tylko jeśli is_directory jest true)
     FileContentView:
       type: object
+      required:
+      - name
+      - size
+      - category
       properties:
         name:
           type: string
-          description: Nazwa pliku (bez ścieżki, czyli np. "file.txt" dla ścieżki
-            "/folder1/folder2/file.txt")
+          description: Kopia jak w FileTreeNodeView.name
         size:
           type: integer
           description: Rozmiar pliku w bajtach
@@ -426,3 +481,36 @@ components:
           - IMAGE
           - OTHER
           description: Kategoria pliku (TEXT, IMAGE lub OTHER)
+    ErrorResponse:
+      type: object
+      required:
+      - status
+      - message
+      - error
+      - timestamp
+      properties:
+        status:
+          type: integer
+          description: HTTP status code
+          example: 404
+        message:
+          type: string
+          description: Opis błędu
+          example: Stash with code 'abc123' not found
+        error:
+          type: string
+          description: Kod błędu
+          example: NOT_FOUND
+        timestamp:
+          type: string
+          format: date-time
+          description: Czas zaistnienia błędu
+          example: '2024-05-05T17:30:22'
+        path:
+          type: string
+          description: Ścieżka żądania
+          example: /api/v1/view/abc123
+        details:
+          type: string
+          description: Dodatkowe szczegóły błędu (opcjonalne)
+          nullable: true

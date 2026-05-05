@@ -5,17 +5,9 @@ import jakarta.validation.constraints.NotNull;
 
 import java.time.OffsetDateTime;
 
-public class ProlongStashRequestDto {
-
-	@NotNull
-	@JsonProperty("new_expiration_date")
-	private OffsetDateTime newExpirationDate;
-
-	public OffsetDateTime getNewExpirationDate() {
-		return newExpirationDate;
-	}
-
-	public void setNewExpirationDate(OffsetDateTime newExpirationDate) {
-		this.newExpirationDate = newExpirationDate;
-	}
+public record ProlongStashRequestDto(
+		@NotNull
+		@JsonProperty("new_expiration_date")
+		OffsetDateTime newExpirationDate
+) {
 }

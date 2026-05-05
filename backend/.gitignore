@@ -39,3 +39,6 @@ out/
 ### Docker ###
 .dockerignore
 
+### Backend Data ###
+backend-data/
+

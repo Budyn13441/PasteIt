@@ -12,6 +12,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.core.io.Resource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -30,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class StashContentController {
 
 	@PostMapping(value = "/upload/{code}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public ResponseEntity<Void> uploadEntry(
 			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.STASH_CODE_REGEX, message = "code contains unsupported characters") String code,
 			@Valid @ModelAttribute UploadEntryRequestDto request) {
@@ -44,6 +47,7 @@ public class StashContentController {
 	}
 
 	@DeleteMapping("/delete/{code}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public ResponseEntity<Void> deleteEntry(
 			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.STASH_CODE_REGEX, message = "code contains unsupported characters") String code,
 			@Valid @ModelAttribute DeleteEntryQueryDto query) {
@@ -51,6 +55,7 @@ public class StashContentController {
 	}
 
 	@PostMapping("/rename/{code}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public ResponseEntity<Void> renameEntry(
 			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.STASH_CODE_REGEX, message = "code contains unsupported characters") String code,
 			@Valid @RequestBody RenameEntryRequestDto request) {
@@ -58,6 +63,7 @@ public class StashContentController {
 	}
 
 	@PostMapping("/new-folder/{code}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public ResponseEntity<Void> createFolder(
 			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.STASH_CODE_REGEX, message = "code contains unsupported characters") String code,
 			@Valid @RequestBody CreateFolderRequestDto request) {
@@ -65,6 +71,7 @@ public class StashContentController {
 	}
 
 	@PostMapping("/update-category/{code}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public ResponseEntity<Void> updateCategory(
 			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.STASH_CODE_REGEX, message = "code contains unsupported characters") String code,
 			@Valid @RequestBody UpdateFileCategoryRequestDto request) {
