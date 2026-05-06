@@ -1,5 +1,6 @@
 package com.pdwww.pasteit.backend.api.storage;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -7,6 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.time.ZonedDateTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -16,8 +18,10 @@ import java.util.logging.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.pdwww.pasteit.backend.api.exception.InvalidRequestException;
 import com.pdwww.pasteit.backend.api.exception.ResourceNotFoundException;
 import com.pdwww.pasteit.backend.api.exception.ServerResourceException;
+import com.pdwww.pasteit.backend.api.exception.StashReadOnlyException;
 import com.pdwww.pasteit.backend.api.model.NodeCategory;
 import com.pdwww.pasteit.backend.api.model.StashMeta;
 import com.pdwww.pasteit.backend.api.model.StashNode;
@@ -26,7 +30,6 @@ import com.pdwww.pasteit.backend.api.util.CodeGenerator;
 import com.pdwww.pasteit.backend.api.util.FileUtils;
 import com.pdwww.pasteit.backend.api.validation.ValidationPatterns;
 
-import ch.qos.logback.core.pattern.parser.Node;
 import tools.jackson.databind.ObjectMapper;
 
 @Component
@@ -42,6 +45,8 @@ public class StashStorage {
     private Path stashPath;
     private Path metaPath;
     private StashMeta meta;
+
+    private boolean expired = false;
 
     public StashStorage() {
     }
@@ -84,18 +89,18 @@ public class StashStorage {
     public static StashStorage getFor(String code) {
         logger.info("Attempting to retrieve stash with code '" + code + "'");
         if (!code.matches(ValidationPatterns.STASH_CODE_REGEX)) {
-            throw new IllegalArgumentException("code contains unsupported characters");
+            throw new InvalidRequestException(code);
         }
 
         Path stashPath = ROOT_DIR.resolve(code);
         Path metaPath = META_DIR.resolve(code + ".json");
 
         if (!Files.isDirectory(stashPath)) {
-            throw new ResourceNotFoundException("Stash with code '" + code + "' not found");
+            throw new ResourceNotFoundException(code);
         }
 
         if (!Files.exists(metaPath)) {
-            throw new ResourceNotFoundException("Metadata for stash with code '" + code + "' not found");
+            throw new ResourceNotFoundException(code);
         }
 
         logger.info("Valid stash with code '" + code + "' found at " + stashPath.toString());
@@ -103,17 +108,27 @@ public class StashStorage {
 
         logger.info("Expires on " + res.getMeta().expirationDate() + ", read-only: " + res.getMeta().readOnly());
 
-        res.verifyNotExpired();
+        res.refreshAndVerifyNotExpired();
         return res;
     }
 
-    public void verifyNotExpired() {
+    public void refreshAndVerifyNotExpired() {
         refreshMeta();
+        if (expired) {
+            throw new ResourceNotFoundException(code);
+        }
         if (meta.expirationDate().isBefore(java.time.ZonedDateTime.now())) {
             logger.info("Stash with code '" + code + "' has expired and will be deleted");
             delete();
             logger.info("Stash with code '" + code + "' deleted successfully");
-            throw new ResourceNotFoundException("Stash with code '" + code + "' has expired");
+            expired = true;
+            throw new ResourceNotFoundException(code);
+        }
+    }
+
+    public void verifyNotReadOnly() {
+        if (meta.readOnly()) {
+            throw new StashReadOnlyException();
         }
     }
 
@@ -122,7 +137,7 @@ public class StashStorage {
 
         String code = CodeGenerator.generateUniqueCode();
         if (!code.matches(ValidationPatterns.STASH_CODE_REGEX)) {
-            throw new IllegalArgumentException("code contains unsupported characters");
+            throw new InvalidRequestException(code);
         }
 
         Path stashPath = ROOT_DIR.resolve(code);
@@ -197,6 +212,7 @@ public class StashStorage {
     public void delete() {
         try {
             FileUtils.deleteDirectory(stashPath);
+            FileUtils.deleteDirectory(metaPath);
         } catch (Exception e) {
             logger.severe("Failed to delete stash: " + e.getMessage());
             throw new ServerResourceException("Failed to delete stash", e);
@@ -209,7 +225,7 @@ public class StashStorage {
 
     public StashView getView() {
         logger.info("Generating view for stash with code '" + code + "'");
-        verifyNotExpired();
+        refreshAndVerifyNotExpired();
 
         Deque<StashNode> stack = new ArrayDeque<>();
         stack.push(new StashNode(StashView.ROOT_PATH, "/", 0, NodeCategory.DIRECTORY, new ArrayList<>()));
@@ -268,5 +284,19 @@ public class StashStorage {
 
         refreshMeta();
         return new StashView(code, meta, stack.peek());
+    }
+
+    public void prolongExpiration(ZonedDateTime newExpirationDate) {
+        refreshAndVerifyNotExpired();
+        verifyNotReadOnly();
+        meta = new StashMeta(newExpirationDate, meta.readOnly(), meta.nodeCategories());
+        syncMeta();
+    }
+
+    public void makeReadOnly() {
+        refreshAndVerifyNotExpired();
+        verifyNotReadOnly();
+        meta = new StashMeta(meta.expirationDate(), true, meta.nodeCategories());
+        syncMeta();
     }
 }

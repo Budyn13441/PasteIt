@@ -11,8 +11,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-import java.util.Map;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -30,7 +28,8 @@ import com.pdwww.pasteit.backend.api.storage.StashStorage;
 @RequestMapping("/api/v1")
 @Validated
 public class StashController {
-	private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(StashController.class.getName());
+	private static final java.util.logging.Logger logger = java.util.logging.Logger
+			.getLogger(StashController.class.getName());
 
 	private final Mapper mapper;
 
@@ -40,7 +39,7 @@ public class StashController {
 
 	@PostMapping("/new")
 	public ResponseEntity<CreateStashResponseDto> createNewStash() {
-		logger.info("Received request to create new stash.");	
+		logger.info("Received request to create new stash.");
 		StashStorage stash = StashStorage.createNew();
 		CreateStashResponseDto responseDto = new CreateStashResponseDto(stash.getCode());
 		return new ResponseEntity<>(responseDto, HttpStatus.CREATED);
@@ -63,13 +62,17 @@ public class StashController {
 	public ResponseEntity<Void> prolongStash(
 			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.STASH_CODE_REGEX, message = "code contains unsupported characters") String code,
 			@Valid @RequestBody ProlongStashRequestDto request) {
-		throw new UnsupportedOperationException("Endpoint not implemented yet: POST /api/v1/prolong/{code}");
+		StashStorage stash = StashStorage.getFor(code);
+		stash.prolongExpiration(request.newExpirationDate());
+		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 	}
 
 	@PostMapping("/make-readonly/{code}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public ResponseEntity<Void> makeStashReadOnly(
 			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.STASH_CODE_REGEX, message = "code contains unsupported characters") String code) {
-		throw new UnsupportedOperationException("Endpoint not implemented yet: POST /api/v1/make-readonly/{code}");
+		StashStorage stash = StashStorage.getFor(code);
+		stash.makeReadOnly();
+		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 	}
 }
