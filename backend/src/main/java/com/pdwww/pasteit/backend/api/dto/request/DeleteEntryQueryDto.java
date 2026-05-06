@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 public record DeleteEntryQueryDto(
 		@NotBlank
 		@Size(min = 1, max = 1024)
-		@Pattern(regexp = ValidationPatterns.STASH_PATH_REGEX, message = "path must be a valid absolute path")
+		@Pattern(regexp = ValidationPatterns.ABSOLUTE_PATH_REGEX, message = "path must be a valid absolute path")
 		String path
 ) {
 }

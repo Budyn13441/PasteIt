@@ -11,7 +11,7 @@ import jakarta.validation.constraints.Size;
 public record UpdateFileCategoryRequestDto(
 		@NotBlank
 		@Size(min = 1, max = 1024)
-		@Pattern(regexp = ValidationPatterns.STASH_PATH_REGEX, message = "file_path must be a valid absolute path")
+		@Pattern(regexp = ValidationPatterns.ABSOLUTE_PATH_REGEX, message = "file_path must be a valid absolute path")
 		@JsonProperty("file_path")
 		String filePath,
 		@NotNull

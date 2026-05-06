@@ -9,12 +9,12 @@ import jakarta.validation.constraints.Size;
 public record RenameEntryRequestDto(
 		@NotBlank
 		@Size(min = 1, max = 1024)
-		@Pattern(regexp = ValidationPatterns.STASH_PATH_REGEX, message = "old_path must be a valid absolute path")
+		@Pattern(regexp = ValidationPatterns.ABSOLUTE_PATH_REGEX, message = "old_path must be a valid absolute path")
 		@JsonProperty("old_path")
 		String oldPath,
 		@NotBlank
 		@Size(max = 255)
-		@Pattern(regexp = ValidationPatterns.ENTRY_NAME_REGEX, message = "new_name must not contain path separators")
+		@Pattern(regexp = ValidationPatterns.ABSOLUTE_PATH_REGEX, message = "new_name must not contain path separators")
 		@JsonProperty("new_name")
 		String newName
 ) {

@@ -47,7 +47,7 @@ public class StashController {
 
 	@GetMapping("/view/{code}")
 	public ResponseEntity<StashViewResponseDto> viewStash(
-			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.STASH_CODE_REGEX, message = "code contains unsupported characters") String code) {
+			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.CODE_REGEX, message = "code contains unsupported characters") String code) {
 		logger.info("Received request to view stash with code: " + code);
 
 		StashStorage stash = StashStorage.getFor(code);
@@ -60,7 +60,7 @@ public class StashController {
 	@PostMapping("/prolong/{code}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public ResponseEntity<Void> prolongStash(
-			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.STASH_CODE_REGEX, message = "code contains unsupported characters") String code,
+			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.CODE_REGEX, message = "code contains unsupported characters") String code,
 			@Valid @RequestBody ProlongStashRequestDto request) {
 		StashStorage stash = StashStorage.getFor(code);
 		stash.prolongExpiration(request.newExpirationDate());
@@ -70,7 +70,7 @@ public class StashController {
 	@PostMapping("/make-readonly/{code}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public ResponseEntity<Void> makeStashReadOnly(
-			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.STASH_CODE_REGEX, message = "code contains unsupported characters") String code) {
+			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.CODE_REGEX, message = "code contains unsupported characters") String code) {
 		StashStorage stash = StashStorage.getFor(code);
 		stash.makeReadOnly();
 		return new ResponseEntity<>(HttpStatus.NO_CONTENT);

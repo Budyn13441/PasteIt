@@ -2,6 +2,7 @@ package com.pdwww.pasteit.backend.api.storage;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,11 +15,14 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.Map;
 import java.util.logging.Logger;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.pdwww.pasteit.backend.api.exception.InvalidRequestException;
+import com.pdwww.pasteit.backend.api.exception.ResourceAlreadyExistsException;
 import com.pdwww.pasteit.backend.api.exception.ResourceNotFoundException;
 import com.pdwww.pasteit.backend.api.exception.ServerResourceException;
 import com.pdwww.pasteit.backend.api.exception.StashReadOnlyException;
@@ -88,12 +92,10 @@ public class StashStorage {
 
     public static StashStorage getFor(String code) {
         logger.info("Attempting to retrieve stash with code '" + code + "'");
-        if (!code.matches(ValidationPatterns.STASH_CODE_REGEX)) {
-            throw new InvalidRequestException(code);
-        }
+        ValidationPatterns.verifyCode(code);
 
-        Path stashPath = ROOT_DIR.resolve(code);
-        Path metaPath = META_DIR.resolve(code + ".json");
+        Path stashPath = ROOT_DIR.resolve(code).normalize();
+        Path metaPath = META_DIR.resolve(code + ".json").normalize();
 
         if (!Files.isDirectory(stashPath)) {
             throw new ResourceNotFoundException(code);
@@ -136,9 +138,7 @@ public class StashStorage {
         logger.info("Attempting to create new stash.");
 
         String code = CodeGenerator.generateUniqueCode();
-        if (!code.matches(ValidationPatterns.STASH_CODE_REGEX)) {
-            throw new InvalidRequestException(code);
-        }
+        ValidationPatterns.verifyCode(code);
 
         Path stashPath = ROOT_DIR.resolve(code);
         Path metaPath = META_DIR.resolve(code + ".json");
@@ -172,7 +172,7 @@ public class StashStorage {
     }
 
     public static boolean exists(String code) {
-        Path stashPath = ROOT_DIR.resolve(code);
+        Path stashPath = ROOT_DIR.resolve(code).normalize();
         return Files.isDirectory(stashPath);
     }
 
@@ -199,7 +199,7 @@ public class StashStorage {
         meta.nodeCategories().put(path.toString(), category);
     }
 
-    private void syncMeta() {
+    private void saveMeta() {
         try {
             ObjectMapper mapper = new ObjectMapper();
             mapper.writeValue(Files.newOutputStream(metaPath), meta);
@@ -220,7 +220,7 @@ public class StashStorage {
     }
 
     private Path relativeViewPath(Path absolutePath) {
-        return StashView.ROOT_PATH.resolve(stashPath.relativize(absolutePath));
+        return StashView.ROOT_PATH.resolve(stashPath.relativize(absolutePath)).normalize();
     }
 
     public StashView getView() {
@@ -290,13 +290,99 @@ public class StashStorage {
         refreshAndVerifyNotExpired();
         verifyNotReadOnly();
         meta = new StashMeta(newExpirationDate, meta.readOnly(), meta.nodeCategories());
-        syncMeta();
+        saveMeta();
     }
 
     public void makeReadOnly() {
         refreshAndVerifyNotExpired();
         verifyNotReadOnly();
         meta = new StashMeta(meta.expirationDate(), true, meta.nodeCategories());
-        syncMeta();
+        saveMeta();
+    }
+
+    private NodeCategory guessCategoryFromName(String name) {
+        if (name.endsWith("/")) {
+            return NodeCategory.DIRECTORY;
+        } else if (name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".gif")) {
+            return NodeCategory.IMAGE;
+        } else if (name.endsWith(".txt") || name.endsWith(".md") || name.endsWith(".java") || name.endsWith(".py")
+                || name.endsWith(".c") || name.endsWith(".cpp") || name.endsWith(".js") || name.endsWith(".html")
+                || name.endsWith(".css")) {
+            return NodeCategory.TEXT;
+        } else {
+            return NodeCategory.OTHER;
+        }
+    }
+
+    public void uploadFile(Path parentPath, String name, InputStream content) {
+        logger.info("Uploading file '" + name + "' to stash with code '" + code + "' at path '" + parentPath.toString()
+                + "'");
+        refreshAndVerifyNotExpired();
+        verifyNotReadOnly();
+
+        ValidationPatterns.verifyFileName(name);
+        Path viewPath = parentPath.resolve(name).normalize();
+        ValidationPatterns.verifyAbsolutePath(viewPath.toString());
+        Path targetPath = ValidationPatterns.verifyInsideStash(stashPath, viewPath.toString());
+
+        logger.fine("Resolved target path for upload: " + targetPath.toString());
+
+        if (Files.exists(targetPath)) {
+            throw new ResourceAlreadyExistsException(relativeViewPath(targetPath).toString());
+        }
+
+        try {
+            Files.copy(content, targetPath);
+            setNodeCategory(relativeViewPath(targetPath), guessCategoryFromName(name));
+            saveMeta();
+        } catch (Exception e) {
+            logger.severe("Failed to upload file: " + e.getMessage());
+            throw new ServerResourceException("Failed to upload file", e);
+        }
+    }
+
+    public void uploadDirectory(Path parentPath, String name, ZipInputStream content) {
+        refreshAndVerifyNotExpired();
+        verifyNotReadOnly();
+
+        ValidationPatterns.verifyFileName(name);
+        Path viewPath = parentPath.resolve(name).normalize();
+        ValidationPatterns.verifyAbsolutePath(viewPath.toString());
+        Path dirPath = ValidationPatterns.verifyInsideStash(stashPath, viewPath.toString());
+
+        if (Files.exists(dirPath)) {
+            throw new ResourceAlreadyExistsException(relativeViewPath(dirPath).toString());
+        }
+
+        ZipEntry entry;
+
+        try {
+            while ((entry = content.getNextEntry()) != null) {
+                ValidationPatterns.verifyZipEntry(entry.getName());
+                Path resultPath = dirPath.resolve(entry.getName()).normalize();
+                if (entry.isDirectory()) {
+                    try {
+                        Files.createDirectories(resultPath);
+                        setNodeCategory(relativeViewPath(resultPath), NodeCategory.DIRECTORY);
+                    } catch (Exception e) {
+                        logger.severe("Failed to create directory during upload: " + e.getMessage());
+                        throw new ServerResourceException("Failed to create directory during upload", e);
+                    }
+                } else {
+                    try {
+                        Files.copy(content, resultPath);
+                        setNodeCategory(relativeViewPath(resultPath), guessCategoryFromName(entry.getName()));
+                    } catch (Exception e) {
+                        logger.severe("Failed to upload file during directory upload: " + e.getMessage());
+                        throw new ServerResourceException("Failed to upload file during directory upload", e);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.severe("Failed to read zip content: " + e.getMessage());
+            throw new ServerResourceException("Failed to read zip content", e);
+        }
+
+        saveMeta();
     }
 }

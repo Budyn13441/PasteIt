@@ -11,24 +11,16 @@ import jakarta.validation.constraints.Size;
 public record CreateFolderRequestDto(
 		@NotNull
 		@Size(max = 1024)
-		@Pattern(regexp = ValidationPatterns.STASH_PATH_OR_EMPTY_REGEX, message = "parent_path must be empty or a valid absolute path")
+		@Pattern(regexp = ValidationPatterns.ABSOLUTE_PATH_REGEX, message = "parent_path must be empty or a valid absolute path")
 		@JsonProperty("parent_path")
 		String parentPath,
 		@NotBlank
 		@Size(max = 255)
-		@Pattern(regexp = ValidationPatterns.ENTRY_NAME_REGEX, message = "name must not contain path separators")
+		@Pattern(regexp = ValidationPatterns.FILE_NAME_REGEX, message = "name must not contain path separators")
 		String name
 ) {
 
 	public CreateFolderRequestDto {
 		parentPath = parentPath == null ? "" : parentPath;
-	}
-
-	@AssertTrue(message = "name must not include a file extension for folders")
-	public boolean isFolderNameValid() {
-		if (name == null || name.isBlank()) {
-			return true;
-		}
-		return !name.matches(ValidationPatterns.FILE_NAME_WITH_EXTENSION_REGEX);
 	}
 }
