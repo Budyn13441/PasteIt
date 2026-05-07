@@ -1,17 +1,33 @@
 package com.pdwww.pasteit.backend.api.exception;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
-import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
-import java.util.stream.Collectors;
 
 @ControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+
+	@Override
+	protected ResponseEntity<Object> handleExceptionInternal(
+			Exception ex,
+			Object body,
+			HttpHeaders headers,
+			HttpStatusCode statusCode,
+			WebRequest request) {
+		ResponseEntity<Object> response = super.handleExceptionInternal(ex, body, headers, statusCode, request);
+		if (response != null && response.getBody() instanceof ProblemDetail problemDetail) {
+			// Temporary for rapid development: expose full framework exception message.
+			problemDetail.setProperty("details", fullExceptionMessage(ex));
+		}
+		return response;
+	}
 
 	/**
 	 * Handle 404 - Stash not found
@@ -22,7 +38,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				HttpStatus.NOT_FOUND.value(),
 				ex.getMessage(),
 				request.getDescription(false).replace("uri=", ""),
-				"NOT_FOUND"
+				"NOT_FOUND",
+				fullExceptionMessage(ex)
 		);
 		return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
 	}
@@ -36,7 +53,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				HttpStatus.NOT_FOUND.value(),
 				ex.getMessage(),
 				request.getDescription(false).replace("uri=", ""),
-				"NOT_FOUND"
+				"NOT_FOUND",
+				fullExceptionMessage(ex)
 		);
 		return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
 	}
@@ -50,7 +68,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				HttpStatus.FORBIDDEN.value(),
 				ex.getMessage(),
 				request.getDescription(false).replace("uri=", ""),
-				"FORBIDDEN"
+				"FORBIDDEN",
+				fullExceptionMessage(ex)
 		);
 		return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
 	}
@@ -64,7 +83,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				HttpStatus.CONFLICT.value(),
 				ex.getMessage(),
 				request.getDescription(false).replace("uri=", ""),
-				"CONFLICT"
+				"CONFLICT",
+				fullExceptionMessage(ex)
 		);
 		return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
 	}
@@ -78,7 +98,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				HttpStatus.CONFLICT.value(),
 				ex.getMessage(),
 				request.getDescription(false).replace("uri=", ""),
-				"CONFLICT"
+				"CONFLICT",
+				fullExceptionMessage(ex)
 		);
 		return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
 	}
@@ -89,12 +110,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler(InvalidPathException.class)
 	public ResponseEntity<ErrorResponse> handleInvalidPath(InvalidPathException ex, WebRequest request) {
 		ErrorResponse errorResponse = new ErrorResponse(
-				HttpStatus.UNPROCESSABLE_ENTITY.value(),
+				HttpStatus.UNPROCESSABLE_CONTENT.value(),
 				ex.getMessage(),
 				request.getDescription(false).replace("uri=", ""),
-				"INVALID_PATH"
+				"INVALID_PATH",
+				fullExceptionMessage(ex)
 		);
-		return new ResponseEntity<>(errorResponse, HttpStatus.UNPROCESSABLE_ENTITY);
+		return new ResponseEntity<>(errorResponse, HttpStatus.UNPROCESSABLE_CONTENT);
 	}
 
 	/**
@@ -103,12 +125,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler(InvalidNameException.class)
 	public ResponseEntity<ErrorResponse> handleInvalidName(InvalidNameException ex, WebRequest request) {
 		ErrorResponse errorResponse = new ErrorResponse(
-				HttpStatus.UNPROCESSABLE_ENTITY.value(),
+				HttpStatus.UNPROCESSABLE_CONTENT.value(),
 				ex.getMessage(),
 				request.getDescription(false).replace("uri=", ""),
-				"INVALID_NAME"
+				"INVALID_NAME",
+				fullExceptionMessage(ex)
 		);
-		return new ResponseEntity<>(errorResponse, HttpStatus.UNPROCESSABLE_ENTITY);
+		return new ResponseEntity<>(errorResponse, HttpStatus.UNPROCESSABLE_CONTENT);
 	}
 
 	/**
@@ -120,7 +143,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				HttpStatus.BAD_REQUEST.value(),
 				ex.getMessage(),
 				request.getDescription(false).replace("uri=", ""),
-				"INVALID_REQUEST"
+				"INVALID_REQUEST",
+				fullExceptionMessage(ex)
 		);
 		return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
 	}
@@ -131,17 +155,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	 */
 	@ExceptionHandler(ConstraintViolationException.class)
 	public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex, WebRequest request) {
-		String violations = ex.getConstraintViolations()
-				.stream()
-				.map(ConstraintViolation::getMessage)
-				.collect(Collectors.joining(", "));
-
 		ErrorResponse errorResponse = new ErrorResponse(
 				HttpStatus.BAD_REQUEST.value(),
 				"Validation failed",
 				request.getDescription(false).replace("uri=", ""),
 				"VALIDATION_ERROR",
-				violations
+				fullExceptionMessage(ex)
 		);
 		return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
 	}
@@ -155,7 +174,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				HttpStatus.INSUFFICIENT_STORAGE.value(),
 				ex.getMessage(),
 				request.getDescription(false).replace("uri=", ""),
-				"SERVER_RESOURCE_UNAVAILABLE"
+				"SERVER_RESOURCE_UNAVAILABLE",
+				fullExceptionMessage(ex)
 		);
 		return new ResponseEntity<>(errorResponse, HttpStatus.INSUFFICIENT_STORAGE);
 	}
@@ -170,8 +190,25 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				"An unexpected error occurred",
 				request.getDescription(false).replace("uri=", ""),
 				"INTERNAL_SERVER_ERROR",
-				ex.getMessage()
+				fullExceptionMessage(ex)
 		);
 		return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+	}
+
+	private String fullExceptionMessage(Throwable throwable) {
+		StringBuilder details = new StringBuilder();
+		Throwable current = throwable;
+		while (current != null) {
+			if (!details.isEmpty()) {
+				details.append(" | Caused by: ");
+			}
+			String message = current.getMessage();
+			details.append(current.getClass().getSimpleName());
+			if (message != null && !message.isBlank()) {
+				details.append(": ").append(message);
+			}
+			current = current.getCause();
+		}
+		return details.toString();
 	}
 }
