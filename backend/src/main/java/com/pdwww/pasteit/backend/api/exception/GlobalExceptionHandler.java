@@ -3,6 +3,7 @@ package com.pdwww.pasteit.backend.api.exception;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -29,9 +30,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return response;
 	}
 
-	/**
-	 * Handle 404 - Stash not found
-	 */
 	@ExceptionHandler(StashNotFoundException.class)
 	public ResponseEntity<ErrorResponse> handleStashNotFound(StashNotFoundException ex, WebRequest request) {
 		ErrorResponse errorResponse = new ErrorResponse(
@@ -41,12 +39,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				"NOT_FOUND",
 				fullExceptionMessage(ex)
 		);
-		return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+		return ResponseEntity.status(HttpStatus.NOT_FOUND)
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(errorResponse);
 	}
 
-	/**
-	 * Handle 404 - Resource (file/folder) not found
-	 */
 	@ExceptionHandler(ResourceNotFoundException.class)
 	public ResponseEntity<ErrorResponse> handleResourceNotFound(ResourceNotFoundException ex, WebRequest request) {
 		ErrorResponse errorResponse = new ErrorResponse(
@@ -56,7 +53,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				"NOT_FOUND",
 				fullExceptionMessage(ex)
 		);
-		return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+		return ResponseEntity.status(HttpStatus.NOT_FOUND)
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(errorResponse);
 	}
 
 	/**

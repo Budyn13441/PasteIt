@@ -14,7 +14,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Paths;
 import java.util.zip.ZipInputStream;
 
@@ -32,6 +34,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -63,11 +66,24 @@ public class StashContentController {
 		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 	}
 
-	@GetMapping(value = "/download/{code}", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-	public ResponseEntity<Resource> downloadEntry(
+	@GetMapping(value = "/download/{code}", produces = {MediaType.APPLICATION_OCTET_STREAM_VALUE, MediaType.APPLICATION_JSON_VALUE})
+	public ResponseEntity<StreamingResponseBody> downloadEntry(
 			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.CODE_REGEX, message = "code contains unsupported characters") String code,
 			@Valid @ModelAttribute DownloadEntryQueryDto query) {
-		throw new UnsupportedOperationException("Endpoint not implemented yet: GET /api/v1/download/{code}");
+		logger.info("Received request to download entry from stash with code: " + code);
+		StashStorage stash = StashStorage.getFor(code);
+
+		ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+		stash.download(Paths.get(query.path()), query.format(), buffer);
+
+		// ???
+		StreamingResponseBody body = outputStream -> {
+			outputStream.write(buffer.toByteArray());
+		};
+
+		return ResponseEntity.ok()
+				.contentType(MediaType.APPLICATION_OCTET_STREAM)
+				.body(body);
 	}
 
 	@DeleteMapping("/delete/{code}")

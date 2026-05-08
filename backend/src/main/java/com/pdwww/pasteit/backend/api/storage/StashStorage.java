@@ -3,6 +3,7 @@ package com.pdwww.pasteit.backend.api.storage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,8 +18,11 @@ import java.util.Map;
 import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
+import org.apache.catalina.webresources.FileResource;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 import com.pdwww.pasteit.backend.api.exception.InvalidRequestException;
@@ -342,6 +346,9 @@ public class StashStorage {
     }
 
     public void uploadDirectory(Path parentPath, String name, ZipInputStream content) {
+        logger.info(
+                "Uploading directory '" + name + "' to stash with code '" + code + "' at path '" + parentPath.toString()
+                        + "'");
         refreshAndVerifyNotExpired();
         verifyNotReadOnly();
 
@@ -353,6 +360,13 @@ public class StashStorage {
         if (Files.exists(dirPath)) {
             throw new ResourceAlreadyExistsException(relativeViewPath(dirPath).toString());
         }
+        try {
+            Files.createDirectories(dirPath);
+            setNodeCategory(relativeViewPath(dirPath), NodeCategory.DIRECTORY);
+        } catch (Exception e) {
+            logger.severe("Failed to create directory for upload: " + e.getMessage());
+            throw new ServerResourceException("Failed to create directory for upload", e);
+        }
 
         ZipEntry entry;
 
@@ -360,6 +374,7 @@ public class StashStorage {
             while ((entry = content.getNextEntry()) != null) {
                 ValidationPatterns.verifyZipEntry(entry.getName());
                 Path resultPath = dirPath.resolve(entry.getName()).normalize();
+                logger.fine("Processing zip entry: " + entry.getName() + " | resultPath: " + resultPath.toString());
                 if (entry.isDirectory()) {
                     try {
                         Files.createDirectories(resultPath);
@@ -384,5 +399,112 @@ public class StashStorage {
         }
 
         saveMeta();
+    }
+
+    private void downloadFile(Path filePath, OutputStream output) {
+        logger.info("Downloading file at path '" + filePath.toString() + "' from stash with code '" + code + "'");
+        refreshAndVerifyNotExpired();
+
+        ValidationPatterns.verifyAbsolutePath(filePath.toString());
+        Path targetPath = ValidationPatterns.verifyInsideStash(stashPath, filePath.toString());
+
+        if (!Files.exists(targetPath) || !Files.isRegularFile(targetPath)) {
+            throw new ResourceNotFoundException(relativeViewPath(targetPath).toString());
+        }
+
+        try {
+            Files.copy(targetPath, output);
+        } catch (Exception e) {
+            logger.severe("Failed to download file: " + e.getMessage());
+            throw new ServerResourceException("Failed to download file", e);
+        }
+    }
+
+    private void downloadFileAsZip(Path filePath, ZipOutputStream stream) {
+        logger.info(
+                "Downloading file at path '" + filePath.toString() + "' as zip from stash with code '" + code + "'");
+        refreshAndVerifyNotExpired();
+
+        ValidationPatterns.verifyAbsolutePath(filePath.toString());
+        Path targetPath = ValidationPatterns.verifyInsideStash(stashPath, filePath.toString());
+
+        if (!Files.exists(targetPath)) {
+            throw new ResourceNotFoundException(relativeViewPath(targetPath).toString());
+        }
+        if (Files.isDirectory(targetPath)) {
+            throw new InvalidRequestException(
+                    "Path '" + relativeViewPath(targetPath).toString() + "' is a directory, not a file");
+        }
+
+        ZipEntry entry = new ZipEntry(targetPath.getFileName().toString());
+        try {
+            stream.putNextEntry(entry);
+            Files.copy(targetPath, stream);
+            stream.closeEntry();
+        } catch (Exception e) {
+            logger.severe("Failed to download file as zip: " + e.getMessage());
+            throw new ServerResourceException("Failed to download file as zip", e);
+        }
+    }
+
+    private void downloadDirectory(Path dirPath, ZipOutputStream stream) {
+        logger.info("Downloading directory at path '" + dirPath.toString() + "' as zip from stash with code '" + code
+                + "'");
+        refreshAndVerifyNotExpired();
+
+        ValidationPatterns.verifyAbsolutePath(dirPath.toString());
+        Path targetPath = ValidationPatterns.verifyInsideStash(stashPath, dirPath.toString());
+
+        if (!Files.exists(targetPath) || !Files.isDirectory(targetPath)) {
+            throw new ResourceNotFoundException(relativeViewPath(targetPath).toString());
+        }
+
+        try {
+            Files.walkFileTree(targetPath, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    Path relativePath = targetPath.relativize(file).normalize();
+                    logger.fine(
+                            "Adding file to zip: " + file.toString() + " | relativePath: " + relativePath.toString());
+                    ZipEntry entry = new ZipEntry(relativePath.toString());
+                    stream.putNextEntry(entry);
+                    Files.copy(file, stream);
+                    stream.closeEntry();
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (Exception e) {
+            logger.severe("Failed to download directory as zip: " + e.getMessage());
+            throw new ServerResourceException("Failed to download directory as zip", e);
+        }
+    }
+
+    public void download(Path path, String format, OutputStream output) {
+        refreshAndVerifyNotExpired();
+
+        ValidationPatterns.verifyAbsolutePath(path.toString());
+        Path targetPath = ValidationPatterns.verifyInsideStash(stashPath, path.toString());
+
+        if (!Files.exists(targetPath)) {
+            throw new ResourceNotFoundException(relativeViewPath(targetPath).toString());
+        }
+
+        if (format == null) {
+            format = "raw";
+        }
+
+        if (format.equals("zip")) {
+            if (Files.isDirectory(targetPath)) {
+                downloadDirectory(path, new ZipOutputStream(output));
+            } else {
+                downloadFileAsZip(path, new ZipOutputStream(output));
+            }
+        } else {
+            if (Files.isDirectory(targetPath)) {
+                throw new InvalidRequestException(
+                        "Path '" + relativeViewPath(targetPath).toString() + "' is a directory, not a file");
+            }
+            downloadFile(path, output);
+        }
     }
 }
