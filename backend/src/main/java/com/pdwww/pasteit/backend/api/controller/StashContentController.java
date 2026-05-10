@@ -66,7 +66,8 @@ public class StashContentController {
 		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 	}
 
-	@GetMapping(value = "/download/{code}", produces = {MediaType.APPLICATION_OCTET_STREAM_VALUE, MediaType.APPLICATION_JSON_VALUE})
+	@GetMapping(value = "/download/{code}", produces = { MediaType.APPLICATION_OCTET_STREAM_VALUE,
+			MediaType.APPLICATION_JSON_VALUE })
 	public ResponseEntity<StreamingResponseBody> downloadEntry(
 			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.CODE_REGEX, message = "code contains unsupported characters") String code,
 			@Valid @ModelAttribute DownloadEntryQueryDto query) {
@@ -91,7 +92,10 @@ public class StashContentController {
 	public ResponseEntity<Void> deleteEntry(
 			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.CODE_REGEX, message = "code contains unsupported characters") String code,
 			@Valid @ModelAttribute DeleteEntryQueryDto query) {
-		throw new UnsupportedOperationException("Endpoint not implemented yet: DELETE /api/v1/delete/{code}");
+		logger.info("Received request to delete entry from stash with code: " + code);
+		StashStorage stash = StashStorage.getFor(code);
+		stash.deleteEntry(Paths.get(query.path()));
+		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 	}
 
 	@PostMapping("/rename/{code}")

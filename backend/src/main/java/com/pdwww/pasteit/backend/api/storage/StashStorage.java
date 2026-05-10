@@ -507,4 +507,47 @@ public class StashStorage {
             downloadFile(path, output);
         }
     }
+
+    public void deleteEntry(Path path) {
+        logger.info("Deleting entry at path '" + path.toString() + "' from stash with code '" + code + "'");
+        refreshAndVerifyNotExpired();
+        verifyNotReadOnly();
+
+        ValidationPatterns.verifyAbsolutePath(path.toString());
+        Path targetPath = ValidationPatterns.verifyInsideStash(stashPath, path.toString());
+
+        if (!Files.exists(targetPath)) {
+            throw new ResourceNotFoundException(relativeViewPath(targetPath).toString());
+        }
+
+        try {
+            Files.walkFileTree(targetPath, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+                        throws IOException {
+                    meta.nodeCategories().remove(relativeViewPath(file).toString());
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult postVisitDirectory(Path dir, IOException exc)
+                        throws IOException {
+                    meta.nodeCategories().remove(relativeViewPath(dir).toString());
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+            FileUtils.deleteDirectory(targetPath);
+            meta.nodeCategories().remove(relativeViewPath(targetPath).toString());
+
+            if (meta.nodeCategories().isEmpty()) {
+                Files.createDirectories(stashPath);
+                meta.nodeCategories().put("/", NodeCategory.DIRECTORY);
+            }
+            
+            saveMeta();
+        } catch (Exception e) {
+            logger.severe("Failed to delete entry: " + e.getMessage());
+            throw new ServerResourceException("Failed to delete entry", e);
+        }
+    }
 }
