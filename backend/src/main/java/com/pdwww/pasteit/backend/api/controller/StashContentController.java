@@ -17,6 +17,7 @@ import jakarta.validation.constraints.Size;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.zip.ZipInputStream;
 
@@ -103,7 +104,10 @@ public class StashContentController {
 	public ResponseEntity<Void> renameEntry(
 			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.CODE_REGEX, message = "code contains unsupported characters") String code,
 			@Valid @RequestBody RenameEntryRequestDto request) {
-		throw new UnsupportedOperationException("Endpoint not implemented yet: POST /api/v1/rename/{code}");
+		logger.info("Received request to rename entry in stash with code: " + code);
+		StashStorage stash = StashStorage.getFor(code);
+		stash.renameEntry(Paths.get(request.oldPath()), Paths.get(request.newPath()));
+		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 	}
 
 	@PostMapping("/new-folder/{code}")

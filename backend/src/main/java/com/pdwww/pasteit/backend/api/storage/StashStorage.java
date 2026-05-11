@@ -1,6 +1,5 @@
 package com.pdwww.pasteit.backend.api.storage;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -20,9 +19,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
-import org.apache.catalina.webresources.FileResource;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 import com.pdwww.pasteit.backend.api.exception.InvalidRequestException;
@@ -319,16 +316,24 @@ public class StashStorage {
     }
 
     public void uploadFile(Path parentPath, String name, InputStream content) {
-        logger.info("Uploading file '" + name + "' to stash with code '" + code + "' at path '" + parentPath.toString()
-                + "'");
+        logger.info("Uploading file to stash with code '" + code + "' at path '" + parentPath.toString()
+                + "' with name '" + name + "'");
         refreshAndVerifyNotExpired();
         verifyNotReadOnly();
 
-        ValidationPatterns.verifyFileName(name);
-        Path viewPath = parentPath.resolve(name).normalize();
-        ValidationPatterns.verifyAbsolutePath(viewPath.toString());
-        Path targetPath = ValidationPatterns.verifyInsideStash(stashPath, viewPath.toString());
-
+        ValidationPatterns.verifyAbsolutePath(parentPath.toString());
+        Path targetPath;
+        if (name.isEmpty()) {
+            String fileName = "file.txt";
+            for (int i = 1; Files.exists(
+                    ValidationPatterns.verifyInsideStash(stashPath, parentPath.resolve(fileName).toString())); i++) {
+                fileName = "file(" + i + ").txt";
+            }
+            name = fileName;
+            targetPath = ValidationPatterns.verifyInsideStash(stashPath, parentPath.resolve(fileName).toString());
+        } else {
+            targetPath = ValidationPatterns.verifyInsideStash(stashPath, parentPath.resolve(name).toString());
+        }
         logger.fine("Resolved target path for upload: " + targetPath.toString());
 
         if (Files.exists(targetPath)) {
@@ -346,32 +351,43 @@ public class StashStorage {
     }
 
     public void uploadDirectory(Path parentPath, String name, ZipInputStream content) {
-        logger.info(
-                "Uploading directory '" + name + "' to stash with code '" + code + "' at path '" + parentPath.toString()
-                        + "'");
+        logger.info("Uploading directory to stash with code '" + code + "' at path '" + parentPath.toString()
+                + "' with name '" + name + "'");
         refreshAndVerifyNotExpired();
         verifyNotReadOnly();
 
-        ValidationPatterns.verifyFileName(name);
-        Path viewPath = parentPath.resolve(name).normalize();
-        ValidationPatterns.verifyAbsolutePath(viewPath.toString());
-        Path dirPath = ValidationPatterns.verifyInsideStash(stashPath, viewPath.toString());
-
-        if (Files.exists(dirPath)) {
-            throw new ResourceAlreadyExistsException(relativeViewPath(dirPath).toString());
+        ValidationPatterns.verifyAbsolutePath(parentPath.toString());
+        Path dirPath;
+        if (name.isEmpty()) {
+            dirPath = ValidationPatterns.verifyInsideStash(stashPath, parentPath.toString());
+        } else {
+            dirPath = ValidationPatterns.verifyInsideStash(stashPath, parentPath.resolve(name).toString());
+            if (Files.exists(dirPath)) {
+                throw new ResourceAlreadyExistsException(relativeViewPath(dirPath).toString());
+            }
+            try {
+                Files.createDirectories(dirPath);
+                setNodeCategory(relativeViewPath(dirPath), NodeCategory.DIRECTORY);
+            } catch (Exception e) {
+                logger.severe("Failed to create directory for upload: " + e.getMessage());
+                throw new ServerResourceException("Failed to create directory for upload", e);
+            }
         }
-        try {
-            Files.createDirectories(dirPath);
-            setNodeCategory(relativeViewPath(dirPath), NodeCategory.DIRECTORY);
-        } catch (Exception e) {
-            logger.severe("Failed to create directory for upload: " + e.getMessage());
-            throw new ServerResourceException("Failed to create directory for upload", e);
+        logger.fine("Resolved target directory path for upload: " + dirPath.toString());
+
+        if (!Files.exists(dirPath)) {
+            throw new ResourceNotFoundException(relativeViewPath(dirPath).toString());
+        }
+        if (!Files.isDirectory(dirPath)) {
+            throw new InvalidRequestException(
+                    "Path '" + relativeViewPath(dirPath).toString() + "' is not a directory");
         }
 
         ZipEntry entry;
-
+        boolean hasEntries = false;
         try {
             while ((entry = content.getNextEntry()) != null) {
+                hasEntries = true;
                 ValidationPatterns.verifyZipEntry(entry.getName());
                 Path resultPath = dirPath.resolve(entry.getName()).normalize();
                 logger.fine("Processing zip entry: " + entry.getName() + " | resultPath: " + resultPath.toString());
@@ -398,7 +414,12 @@ public class StashStorage {
             throw new ServerResourceException("Failed to read zip content", e);
         }
 
-        saveMeta();
+        if (hasEntries) {
+            saveMeta();
+        } else {
+            logger.severe("Zip file is empty, no entries found to upload");
+            throw new InvalidRequestException("Zip file is empty, no entries found to upload");
+        }
     }
 
     private void downloadFile(Path filePath, OutputStream output) {
@@ -513,6 +534,10 @@ public class StashStorage {
         refreshAndVerifyNotExpired();
         verifyNotReadOnly();
 
+        if (path.equals(Path.of("/"))) {
+            throw new InvalidRequestException("Cannot delete root directory");
+        }
+
         ValidationPatterns.verifyAbsolutePath(path.toString());
         Path targetPath = ValidationPatterns.verifyInsideStash(stashPath, path.toString());
 
@@ -539,15 +564,79 @@ public class StashStorage {
             FileUtils.deleteDirectory(targetPath);
             meta.nodeCategories().remove(relativeViewPath(targetPath).toString());
 
-            if (meta.nodeCategories().isEmpty()) {
-                Files.createDirectories(stashPath);
-                meta.nodeCategories().put("/", NodeCategory.DIRECTORY);
-            }
-            
             saveMeta();
         } catch (Exception e) {
             logger.severe("Failed to delete entry: " + e.getMessage());
             throw new ServerResourceException("Failed to delete entry", e);
+        }
+    }
+
+    public void renameEntry(Path oldPath, Path newPath) {
+        logger.info("Renaming entry at path '" + oldPath.toString() + "' to '" + newPath.toString()
+                + "' in stash with code '" + code
+                + "'");
+        refreshAndVerifyNotExpired();
+        verifyNotReadOnly();
+
+        if (oldPath.equals(Path.of("/"))) {
+            throw new InvalidRequestException("Cannot rename root directory");
+        }
+        ValidationPatterns.verifyAbsolutePath(oldPath.toString());
+        ValidationPatterns.verifyAbsolutePath(newPath.toString());
+        Path targetOldPath = ValidationPatterns.verifyInsideStash(stashPath, oldPath.toString());
+        Path targetNewPath = ValidationPatterns.verifyInsideStash(stashPath, newPath.toString());
+
+        if (!Files.exists(targetOldPath)) {
+            throw new ResourceNotFoundException(relativeViewPath(targetOldPath).toString());
+        }
+        if (Files.exists(targetNewPath)) {
+            throw new ResourceAlreadyExistsException(relativeViewPath(targetNewPath).toString());
+        }
+
+        try {
+            NodeCategory category = getNodeCategory(oldPath);
+            meta.nodeCategories().remove(oldPath.toString());
+            meta.nodeCategories().put(newPath.toString(), category);
+
+            // Update categories of all nested entries if it's a directory.
+            if (category == NodeCategory.DIRECTORY) {
+                Files.walkFileTree(targetOldPath, new SimpleFileVisitor<>() {
+                    @Override
+                    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+                            throws IOException {
+                        Path newFilePath = targetNewPath.resolve(targetOldPath.relativize(file)).normalize();
+                        Path relativeOldPath = relativeViewPath(file);
+                        Path relativeNewPath = relativeViewPath(newFilePath);
+
+                        NodeCategory fileCategory = getNodeCategory(relativeOldPath);
+                        meta.nodeCategories().remove(relativeOldPath.toString());
+                        meta.nodeCategories().put(relativeNewPath.toString(), fileCategory);
+                        return FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public FileVisitResult postVisitDirectory(Path dir, IOException exc)
+                            throws IOException {
+                        Path newDirPath = targetNewPath.resolve(targetOldPath.relativize(dir)).normalize();
+                        Path relativeOldPath = relativeViewPath(dir);
+                        Path relativeNewPath = relativeViewPath(newDirPath);
+
+                        NodeCategory dirCategory = getNodeCategory(relativeOldPath);
+                        meta.nodeCategories().remove(relativeOldPath.toString());
+                        meta.nodeCategories().put(relativeNewPath.toString(), dirCategory);
+                        return FileVisitResult.CONTINUE;
+                    }
+                });
+            }
+
+            logger.fine("Moving entry from '" + targetOldPath.toString() + "' to '" + targetNewPath.toString() + "'");
+            FileUtils.copyDirectory(targetOldPath, targetNewPath);
+            FileUtils.deleteDirectory(targetOldPath);
+
+            saveMeta();
+        } catch (Exception e) {
+            logger.severe("Failed to rename entry: " + e.getMessage());
+            throw new ServerResourceException("Failed to rename entry", e);
         }
     }
 }
