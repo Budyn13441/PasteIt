@@ -1,7 +1,5 @@
-version: '3.8'
-
 services:
-  spring-app:
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
@@ -15,9 +13,19 @@ services:
       - JAVA_OPTS=-Xmx512m -Xms256m
     restart: unless-stopped
 
+  tests:
+    image: gradle:9.4.1-jdk21
+    working_dir: /workspace
+    command: ./gradlew test --no-daemon
+    volumes:
+      - .:/workspace
+      - gradle-cache:/home/gradle/.gradle
+
 volumes:
   # Virtual filesystem storage with 1GB capacity
   stashes:
     driver: local
   stashes-meta:
+    driver: local
+  gradle-cache:
     driver: local

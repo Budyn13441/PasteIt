@@ -1,0 +1,29 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - stashes:/root/stashes
+      - stashes-meta:/root/stashes-meta
+    environment:
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    restart: unless-stopped
+
+  tests:
+    image: gradle:9.4.1-jdk21
+    working_dir: /workspace/backend
+    command: ./gradlew test --no-daemon
+    volumes:
+      - ./backend:/workspace/backend
+      - gradle-cache:/home/gradle/.gradle
+
+volumes:
+  stashes:
+    driver: local
+  stashes-meta:
+    driver: local
+  gradle-cache:
+    driver: local
