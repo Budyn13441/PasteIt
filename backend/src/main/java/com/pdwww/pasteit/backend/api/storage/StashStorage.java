@@ -639,4 +639,53 @@ public class StashStorage {
             throw new ServerResourceException("Failed to rename entry", e);
         }
     }
+
+    public void createEmptyDirectory(Path parentPath, String name) {
+        logger.info("Creating directory in stash with code '" + code + "' at path '" + parentPath.toString()
+                + "' with name '" + name + "'");
+        refreshAndVerifyNotExpired();
+        verifyNotReadOnly();
+
+        ValidationPatterns.verifyAbsolutePath(parentPath.toString());
+        Path targetPath = ValidationPatterns.verifyInsideStash(stashPath, parentPath.resolve(name).toString());
+
+        if (Files.exists(targetPath)) {
+            throw new ResourceAlreadyExistsException(relativeViewPath(targetPath).toString());
+        }
+
+        try {
+            Files.createDirectories(targetPath);
+            setNodeCategory(relativeViewPath(targetPath), NodeCategory.DIRECTORY);
+            saveMeta();
+        } catch (Exception e) {
+            logger.severe("Failed to create directory: " + e.getMessage());
+            throw new ServerResourceException("Failed to create directory", e);
+        }
+    }
+
+    public void setCategory(Path path, NodeCategory category) {
+        logger.info("Setting category of entry at path '" + path.toString() + "' to '" + category.toString()
+                + "' in stash with code '" + code + "'");
+        refreshAndVerifyNotExpired();
+        verifyNotReadOnly();
+
+        ValidationPatterns.verifyAbsolutePath(path.toString());
+        Path targetPath = ValidationPatterns.verifyInsideStash(stashPath, path.toString());
+
+        if (!Files.exists(targetPath)) {
+            throw new ResourceNotFoundException(relativeViewPath(targetPath).toString());
+        }
+        if (Files.isDirectory(targetPath) && category != NodeCategory.DIRECTORY) {
+            throw new InvalidRequestException(
+                    "Cannot set category of a directory to '" + category.toString() + "'");
+        }
+
+        try {
+            setNodeCategory(relativeViewPath(targetPath), category);
+            saveMeta();
+        } catch (Exception e) {
+            logger.severe("Failed to set category: " + e.getMessage());
+            throw new ServerResourceException("Failed to set category", e);
+        }
+    }
 }

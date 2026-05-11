@@ -6,7 +6,9 @@ import com.pdwww.pasteit.backend.api.dto.request.DownloadEntryQueryDto;
 import com.pdwww.pasteit.backend.api.dto.request.RenameEntryRequestDto;
 import com.pdwww.pasteit.backend.api.dto.request.UpdateFileCategoryRequestDto;
 import com.pdwww.pasteit.backend.api.dto.request.UploadEntryRequestDto;
+import com.pdwww.pasteit.backend.api.exception.InvalidRequestException;
 import com.pdwww.pasteit.backend.api.exception.ServerResourceException;
+import com.pdwww.pasteit.backend.api.model.NodeCategory;
 import com.pdwww.pasteit.backend.api.storage.StashStorage;
 import com.pdwww.pasteit.backend.api.validation.ValidationPatterns;
 import jakarta.validation.Valid;
@@ -115,7 +117,10 @@ public class StashContentController {
 	public ResponseEntity<Void> createFolder(
 			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.CODE_REGEX, message = "code contains unsupported characters") String code,
 			@Valid @RequestBody CreateFolderRequestDto request) {
-		throw new UnsupportedOperationException("Endpoint not implemented yet: POST /api/v1/new-folder/{code}");
+		logger.info("Received request to create folder in stash with code: " + code);
+		StashStorage stash = StashStorage.getFor(code);
+		stash.createEmptyDirectory(Paths.get(request.parentPath()), request.name());
+		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 	}
 
 	@PostMapping("/update-category/{code}")
@@ -123,6 +128,14 @@ public class StashContentController {
 	public ResponseEntity<Void> updateCategory(
 			@PathVariable @NotBlank @Size(max = 128) @Pattern(regexp = ValidationPatterns.CODE_REGEX, message = "code contains unsupported characters") String code,
 			@Valid @RequestBody UpdateFileCategoryRequestDto request) {
-		throw new UnsupportedOperationException("Endpoint not implemented yet: POST /api/v1/update-category/{code}");
+		logger.info("Received request to update file category in stash with code: " + code);
+		StashStorage stash = StashStorage.getFor(code);
+		stash.setCategory(Paths.get(request.filePath()), switch (request.category()) {
+			case TEXT -> NodeCategory.TEXT;
+			case IMAGE -> NodeCategory.IMAGE;
+			case OTHER -> NodeCategory.OTHER;
+			default -> throw new InvalidRequestException("Unsupported category: " + request.category());
+		});
+		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 	}
 }
