@@ -1,0 +1,175 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.logoLink {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--gray-900);
+  letter-spacing: -0.3px;
+}
+
+.logoIcon {
+  color: var(--blue-500);
+}
+
+.codeChip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem 0.3rem 0.9rem;
+}
+
+.codeLabel {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.codeValue {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.copyBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem;
+  color: var(--text-muted);
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.copyBtn:hover {
+  color: var(--accent);
+}
+
+.main {
+  flex: 1;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.treeCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.errorBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--danger-light);
+  border: 1px solid #e8b4b0;
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  font-size: 0.875rem;
+}
+
+.dismissBtn {
+  color: var(--danger);
+  opacity: 0.6;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.dismissBtn:hover { opacity: 1; }
+
+/* Loading / error states */
+.centered {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid var(--border-mid);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.errorBox {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem;
+  text-align: center;
+  max-width: 380px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.errorIcon {
+  font-size: 1.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.errorBox h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+.errorBox p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.backLink {
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.backLink:hover { text-decoration: underline; }

@@ -1,0 +1,234 @@
+.tree {
+  position: relative;
+}
+
+.loadingBar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--blue-200), var(--blue-400), var(--blue-200));
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+  border-radius: 2px 2px 0 0;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.nodeWrapper {
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.nodeWrapper:last-child {
+  border-bottom: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+  padding-right: 0.75rem;
+  min-height: 38px;
+  transition: background 0.1s;
+}
+
+.row:hover {
+  background: var(--gray-50);
+}
+
+.rootRow {
+  background: var(--blue-50);
+  border-bottom: 1px solid var(--blue-100);
+}
+
+.rootRow:hover {
+  background: var(--blue-100);
+}
+
+.expandBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--gray-400);
+  border-radius: 3px;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.expandBtn:hover {
+  color: var(--accent);
+}
+
+.expandSpacer {
+  width: 18px;
+  flex-shrink: 0;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.iconDir { color: var(--blue-400); }
+.iconFile { color: var(--gray-400); }
+
+.name {
+  font-size: 0.875rem;
+  color: var(--gray-700);
+  font-weight: 400;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-sans);
+}
+
+.nameClickable {
+  color: var(--blue-600);
+  cursor: pointer;
+}
+
+.nameClickable:hover {
+  text-decoration: underline;
+}
+
+.cat {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+}
+
+.catTEXT {
+  background: #e8f4e8;
+  color: #2d6a2d;
+}
+
+.catIMAGE {
+  background: var(--accent-light);
+  color: var(--blue-700);
+}
+
+.catOTHER {
+  background: var(--gray-100);
+  color: var(--gray-500);
+}
+
+.size {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  color: var(--gray-400);
+  border-radius: 5px;
+  transition: all 0.12s;
+}
+
+.actionBtn:hover {
+  color: var(--blue-600);
+  background: var(--accent-light);
+}
+
+.actionBtnDanger:hover {
+  color: var(--danger);
+  background: var(--danger-light);
+}
+
+.renameInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0.2rem 0.5rem;
+  background: var(--white);
+  border: 1.5px solid var(--blue-400);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.catSelect {
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  color: var(--gray-600);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.15rem 0.3rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.catSelect:hover, .catSelect:focus {
+  border-color: var(--blue-400);
+  color: var(--blue-700);
+}
+
+.newFolderRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem 0.4rem 0;
+  background: var(--blue-50);
+  border-bottom: 1px solid var(--blue-100);
+  color: var(--blue-400);
+}
+
+.confirmCreate {
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.2rem 0.65rem;
+  background: var(--accent);
+  color: white;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.confirmCreate:hover { background: var(--accent-hover); }
+
+.cancelCreate {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 0.2rem 0.4rem;
+}
+
+.cancelCreate:hover { color: var(--danger); }
+
+.emptyHint {
+  padding: 0.6rem 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding-right: 1rem;
+}
