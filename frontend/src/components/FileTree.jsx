@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import JSZip from 'jszip'
 import * as api from '../api/index.js'
 import styles from './FileTree.module.css'
 
@@ -26,6 +27,7 @@ function TreeNode({ node, code, isReadOnly, onPreview, withRefresh, onError, dep
   const [renameName, setRenameName] = useState('')
   const [creatingFolder, setCreatingFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
+  const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef(null)
   const folderInputRef = useRef(null)
 
@@ -39,7 +41,6 @@ function TreeNode({ node, code, isReadOnly, onPreview, withRefresh, onError, dep
     return '/' + parts.join('/')
   }
 
-  // --- Actions ---
   async function handleDelete() {
     if (!window.confirm(`Delete "${node.name}"?`)) return
     await withRefresh(api.deleteEntry)(code, node.path)
@@ -63,10 +64,26 @@ function TreeNode({ node, code, isReadOnly, onPreview, withRefresh, onError, dep
   }
 
   async function handleUploadFolder(e) {
-    const file = e.target.files[0]
-    if (!file) return
-    await withRefresh(api.uploadDirectory)(code, node.path, file.name.replace(/\.zip$/i, ''), file)
-    e.target.value = ''
+    const files = Array.from(e.target.files)
+    if (!files.length) return
+    setUploading(true)
+    try {
+      const zip = new JSZip()
+      for (const file of files) {
+        const data = await file.arrayBuffer()
+        const zipPath = file.webkitRelativePath.split('/').slice(1).join('/')
+		zip.file(zipPath, data)
+      }
+      const folderName = files[0].webkitRelativePath.split('/')[0]
+      const zipBlob = await zip.generateAsync({ type: 'blob' })
+      const zipFile = new File([zipBlob], `${folderName}.zip`, { type: 'application/zip' })
+      await withRefresh(api.uploadDirectory)(code, node.path, folderName, zipFile)
+    } catch (err) {
+      onError(err.message)
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+    }
   }
 
   async function handleDownload() {
@@ -102,7 +119,6 @@ function TreeNode({ node, code, isReadOnly, onPreview, withRefresh, onError, dep
         className={`${styles.row} ${isRoot ? styles.rootRow : ''}`}
         style={{ paddingLeft: `${12 + indent}px` }}
       >
-        {/* Expand toggle for dirs */}
         {isDir ? (
           <button
             className={styles.expandBtn}
@@ -120,12 +136,10 @@ function TreeNode({ node, code, isReadOnly, onPreview, withRefresh, onError, dep
           <span className={styles.expandSpacer} />
         )}
 
-        {/* Icon */}
         <span className={`${styles.icon} ${isDir ? styles.iconDir : styles.iconFile}`}>
           {isDir ? <IconFolder /> : IconForCategory(category)}
         </span>
 
-        {/* Name / rename */}
         {renaming ? (
           <input
             className={styles.renameInput}
@@ -148,35 +162,41 @@ function TreeNode({ node, code, isReadOnly, onPreview, withRefresh, onError, dep
           </button>
         )}
 
-        {/* Category badge for files */}
         {!isDir && category && (
           <span className={`${styles.cat} ${styles[`cat${category}`]}`}>
             {category}
           </span>
         )}
 
-        {/* File size */}
         {!isDir && node.file?.size != null && (
           <span className={styles.size}>{formatSize(node.file.size)}</span>
         )}
 
-        {/* Actions */}
+        {uploading && (
+          <span className={styles.uploadingBadge}>zipping…</span>
+        )}
+
         <div className={styles.actions}>
-          {/* Upload file to folder */}
           {isDir && !isReadOnly && (
             <>
               <input
-                type="file" multiple ref={fileInputRef}
-                style={{ display: 'none' }} onChange={handleUploadFile}
+                type="file"
+                multiple
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                onChange={handleUploadFile}
               />
               <input
-                type="file" ref={folderInputRef} accept=".zip"
-                style={{ display: 'none' }} onChange={handleUploadFolder}
+                type="file"
+                ref={folderInputRef}
+                style={{ display: 'none' }}
+                webkitdirectory=""
+                onChange={handleUploadFolder}
               />
               <ActionBtn title="Upload file(s)" onClick={() => fileInputRef.current?.click()}>
                 <IconUpload />
               </ActionBtn>
-              <ActionBtn title="Upload folder (.zip)" onClick={() => folderInputRef.current?.click()}>
+              <ActionBtn title="Upload folder" onClick={() => folderInputRef.current?.click()} disabled={uploading}>
                 <IconFolderUp />
               </ActionBtn>
               <ActionBtn title="New folder" onClick={() => setCreatingFolder(v => !v)}>
@@ -185,15 +205,18 @@ function TreeNode({ node, code, isReadOnly, onPreview, withRefresh, onError, dep
             </>
           )}
 
-          {/* Download */}
-          <ActionBtn title="Download" onClick={handleDownload}>
-            <IconDownload />
-          </ActionBtn>
+          {/* Download only for files */}
+          {!isDir && (
+            <ActionBtn title="Download" onClick={handleDownload}>
+              <IconDownload />
+            </ActionBtn>
+          )}
+
+          {/* Download as ZIP for everything */}
           <ActionBtn title="Download as ZIP" onClick={handleDownloadZip}>
             <IconZip />
           </ActionBtn>
 
-          {/* Category selector for files */}
           {!isDir && !isReadOnly && (
             <select
               className={styles.catSelect}
@@ -207,14 +230,12 @@ function TreeNode({ node, code, isReadOnly, onPreview, withRefresh, onError, dep
             </select>
           )}
 
-          {/* Rename */}
           {!isRoot && !isReadOnly && (
             <ActionBtn title="Rename" onClick={() => { setRenameName(node.name); setRenaming(true) }}>
               <IconRename />
             </ActionBtn>
           )}
 
-          {/* Delete */}
           {!isRoot && !isReadOnly && (
             <ActionBtn title="Delete" danger onClick={handleDelete}>
               <IconDelete />
@@ -223,7 +244,6 @@ function TreeNode({ node, code, isReadOnly, onPreview, withRefresh, onError, dep
         </div>
       </div>
 
-      {/* New folder input */}
       {creatingFolder && (
         <div className={styles.newFolderRow} style={{ paddingLeft: `${12 + indent + 28}px` }}>
           <IconFolder />
@@ -243,7 +263,6 @@ function TreeNode({ node, code, isReadOnly, onPreview, withRefresh, onError, dep
         </div>
       )}
 
-      {/* Children */}
       {isDir && expanded && node.children?.length > 0 && (
         <div>
           {node.children.map(child => (
@@ -262,7 +281,6 @@ function TreeNode({ node, code, isReadOnly, onPreview, withRefresh, onError, dep
         </div>
       )}
 
-      {/* Empty folder hint */}
       {isDir && expanded && (!node.children || node.children.length === 0) && !creatingFolder && (
         <div className={styles.emptyHint} style={{ paddingLeft: `${12 + indent + 28}px` }}>
           {isReadOnly ? 'Empty folder' : 'Empty — upload files or create a folder'}
@@ -272,12 +290,13 @@ function TreeNode({ node, code, isReadOnly, onPreview, withRefresh, onError, dep
   )
 }
 
-function ActionBtn({ children, title, onClick, danger }) {
+function ActionBtn({ children, title, onClick, danger, disabled }) {
   return (
     <button
       className={`${styles.actionBtn} ${danger ? styles.actionBtnDanger : ''}`}
       title={title}
       onClick={onClick}
+      disabled={disabled}
     >
       {children}
     </button>
@@ -297,7 +316,6 @@ function formatSize(bytes) {
   return `${(bytes / 1048576).toFixed(1)} MB`
 }
 
-// ---- Icons ----
 function IconFolder() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
